@@ -1,0 +1,15 @@
+application: push-sms
+version: 1
+runtime: python27
+threadsafe: false
+api_version: 1
+
+handlers:
+- url: /css
+  static_dir: css
+
+- url: /js
+  static_dir: js
+
+- url: .*
+  script: pushsms.app
