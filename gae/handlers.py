@@ -1,13 +1,25 @@
 import webapp2
-from os import path
-from google.appengine.ext.webapp.template import render
+import os
+import jinja2
+
+jinja_environment = jinja2.Environment(
+    loader=jinja2.FileSystemLoader(
+        os.path.dirname(__file__), '../templates/'
+    )
+)
 
 
-class MainPage(webapp2.RequestHandler):
+class BaseRequestHandler(webapp2.RequestHandler):
+
+    def render(self, template, context={}):
+        template = jinja_environment.get_template(template)
+        self.response.out.write(template.render(context))
+
+
+class MainPage(BaseRequestHandler):
 
     def get(self):
-        tmpl = path.join(path.dirname(__file__), 'static/html/index.html')
-        self.response.out.write(render(tmpl, None))
+        self.render('index.html')
 
 
 class RegisterHandler(webapp2.RequestHandler):
