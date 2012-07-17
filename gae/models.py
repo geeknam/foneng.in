@@ -1,5 +1,6 @@
 from google.appengine.ext import db
 from google.appengine.ext.db import polymodel
+import json
 
 
 class UserData(db.Model):
@@ -8,6 +9,8 @@ class UserData(db.Model):
     phone = db.PhoneNumberProperty()
     registration_time = db.DateTimeProperty(auto_now_add=True)
     registration_id = db.StringProperty(required=True)
+    store_contacts = db.BooleanProperty(default=True)
+    store_messages = db.BooleanProperty(default=True)
 
     def get_latest_incoming(self, limit):
         return self.messages.filter(
@@ -51,8 +54,24 @@ class OutgoingMessage(Message):
     recipients = db.ListProperty(Contact)
     sent = db.BooleanProperty(default=False)
 
+    def to_json(self):
+        return json.dumps({
+            'user_email': self.user.email(),
+            'content': self.content,
+            'recipients': self.recipients,
+            'sent': self.sent
+        })
+
 
 class IncomingMessage(Message):
 
     sender = db.ReferenceProperty(Contact, collection_name="sent_messages")
     received = db.BooleanProperty(default=False)
+
+    def to_json(self):
+        return json.dumps({
+            'user_email': self.user.email(),
+            'content': self.content,
+            'sender': self.sender,
+            'received': self.received
+        })
