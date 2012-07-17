@@ -1,10 +1,10 @@
 import webapp2
-from gae import handlers, xmpp
+from gae import basehandlers, xmpp
 
 app = webapp2.WSGIApplication([
-    ('/', handlers.MainPage),
-    ('/register', handlers.RegisterHandler),
-    ('/unregister', handlers.UnregisterHandler),
+    ('/', basehandlers.MainPage),
+    ('/register', basehandlers.RegisterHandler),
+    ('/unregister', basehandlers.UnregisterHandler),
     ('/_ah/xmpp/message/chat/', xmpp.XMPPHandler)
 ], debug=True
 )
