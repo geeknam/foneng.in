@@ -75,3 +75,10 @@ class IncomingMessage(Message):
             'sender': self.sender,
             'received': self.received
         })
+
+
+class Call(db.Model):
+
+    user = db.ReferenceProperty(UserData, collection_name="calls")
+    caller = db.ReferenceProperty(Contact, collection_name="calls")
+    time_called = db.TimeProperty(auto_now_add=True)
