@@ -1,9 +1,8 @@
 from google.appengine.ext import db
 from google.appengine.ext.db import polymodel
-import json
 
 
-class UserData(db.Model):
+class Account(db.Model):
 
     user = db.UserProperty(required=True)
     phone = db.PhoneNumberProperty()
@@ -11,6 +10,10 @@ class UserData(db.Model):
     registration_id = db.StringProperty(required=True)
     store_contacts = db.BooleanProperty(default=True)
     store_messages = db.BooleanProperty(default=True)
+
+    @property
+    def email(self):
+        return self.user.email()
 
     def get_latest_incoming(self, limit):
         return self.messages.filter(
@@ -25,14 +28,14 @@ class UserData(db.Model):
 
 class Contact(db.Model):
 
-    user = db.ReferenceProperty(UserData, collection_name="contacts")
+    account = db.ReferenceProperty(Account, collection_name="contacts")
     phone = db.PhoneNumberProperty(required=True)
     full_name = db.StringProperty()
 
 
 class Message(polymodel.PolyModel):
 
-    user = db.ReferenceProperty(UserData, collection_name="messages")
+    account = db.ReferenceProperty(Account, collection_name="messages")
     content = db.TextProperty(required=True)
     time_sent = db.TimeProperty(auto_now_add=True)
 
@@ -51,16 +54,24 @@ class Message(polymodel.PolyModel):
 
 class OutgoingMessage(Message):
 
-    recipients = db.ListProperty(Contact)
+    recipients = db.ListProperty(db.Key)
     sent = db.BooleanProperty(default=False)
 
-    def to_json(self):
-        return json.dumps({
-            'user_email': self.user.email(),
+    def mark_sent(self):
+        if self.account.store_contacts:
+            self.sent = True
+            self.put()
+        else:
+            self.delete()
+
+    def to_dict(self):
+        recipients = [Contact.get(r).phone for r in self.recipients]
+
+        return {
+            'email': self.account.email,
             'content': self.content,
-            'recipients': self.recipients,
-            'sent': self.sent
-        })
+            'recipients': recipients,
+        }
 
 
 class IncomingMessage(Message):
@@ -68,17 +79,17 @@ class IncomingMessage(Message):
     sender = db.ReferenceProperty(Contact, collection_name="sent_messages")
     received = db.BooleanProperty(default=False)
 
-    def to_json(self):
-        return json.dumps({
+    def to_dict(self):
+        return {
             'user_email': self.user.email(),
             'content': self.content,
             'sender': self.sender,
             'received': self.received
-        })
+        }
 
 
 class Call(db.Model):
 
-    user = db.ReferenceProperty(UserData, collection_name="calls")
+    account = db.ReferenceProperty(Account, collection_name="calls")
     caller = db.ReferenceProperty(Contact, collection_name="calls")
     time_called = db.TimeProperty(auto_now_add=True)

@@ -1,6 +1,7 @@
 import urllib
 import urllib2
 import json
+from collections import defaultdict
 
 GCM_URL = 'https://android.googleapis.com/gcm/send'
 
@@ -18,6 +19,31 @@ class GCMMissingRegistrationException(GCMException): pass
 class GCMMismatchSenderIdException(GCMException): pass
 class GCMNotRegisteredException(GCMException): pass
 class GCMMessageTooBigException(GCMException): pass
+class GCMInvalidRegistrationException(GCMException): pass
+class GCMUnavailableException(GCMException): pass
+
+
+# TODO: Refactor this to be more human-readable
+def group_response(response, registration_ids, key):
+    # Pair up results and reg_ids
+    mapping = zip(registration_ids, response['results'])
+    # Filter by key
+    filtered = filter(lambda x: key in x[1], mapping)
+    # Only consider the value in the dict
+    tupled = [(s[0], s[1][key]) for s in filtered]
+    # Grouping of errors and mapping of ids
+    if key is 'registration_id':
+        grouping = {}
+        for k, v in tupled:
+            grouping[k] = v
+    else:
+        grouping = defaultdict(list)
+        for k, v in tupled:
+            grouping[v].append(k)
+
+    if len(grouping) == 0:
+        return
+    return grouping
 
 
 class GCM(object):
@@ -63,7 +89,7 @@ class GCM(object):
         if collapse_key:
             payload['collapse_key'] = collapse_key
 
-        if json:
+        if is_json:
             payload = json.dumps(payload)
 
         return payload
@@ -104,22 +130,43 @@ class GCM(object):
             response = json.loads(response)
         return response
 
-    def handle_response(self, response):
-        """
-        Raises exceptions from Google's response if found.
-        Use this to find out if the data sent had any errors
-        """
-
-        error = response['results']['error']
-
-        if error == 'MissingRegistration':
-            raise GCMMissingRegistrationException("Missing registration_ids")
-        elif error == 'InvalidRegistration':
-            raise GCMMismatchSenderIdException("A registration ID is tied to a certain group of senders")
+    def raise_error(self, error):
+        if error == 'InvalidRegistration':
+            raise GCMInvalidRegistrationException("Registration ID is invalid")
+        elif error == 'Unavailable':
+            raise GCMUnavailableException("Server unavailable. Resent the message")
         elif error == 'NotRegistered':
             raise GCMNotRegisteredException("Registration id is not valid anymore")
+        elif error == 'MismatchSenderId':
+            raise GCMMismatchSenderIdException("A Registration ID is tied to a certain group of senders")
         elif error == 'MessageTooBig':
             raise GCMMessageTooBigException("Message can't exceed 4096 bytes")
+
+    def handle_plaintext_response(self, response):
+
+        # Split response by line
+        response_lines = response.strip().split('\n')
+        # Split the first line by =
+        key, value = response_lines[0].split('=')
+        if key == 'Error':
+            self.raise_error(value)
+        else:
+            if len(response_lines) == 2:
+                return response_lines[1].split('=')[1]
+            else:
+                return
+
+    def handle_json_response(self, response, registration_ids):
+        errors = group_response(response, registration_ids, 'error')
+        canonical = group_response(response, registration_ids, 'registration_id')
+
+        info = {}
+        if errors:
+            info.update({'errors': errors})
+        if canonical:
+            info.update({'canonical': canonical})
+
+        return info
 
     def plaintext_request(self, registration_id, data=None, collapse_key=None,
                             delay_while_idle=False, time_to_live=None):
@@ -140,7 +187,8 @@ class GCM(object):
             delay_while_idle, time_to_live, False
         )
 
-        return self.make_request(payload, json=False)
+        response = self.make_request(payload, is_json=False)
+        return self.handle_plaintext_response(response)
 
     def json_request(self, registration_ids, data=None, collapse_key=None,
                         delay_while_idle=False, time_to_live=None):
@@ -163,4 +211,5 @@ class GCM(object):
             delay_while_idle, time_to_live
         )
 
-        return self.make_request(payload, is_json=True)
+        response = self.make_request(payload, is_json=True)
+        return self.handle_json_response(response, registration_ids)
