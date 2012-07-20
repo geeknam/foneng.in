@@ -4,8 +4,8 @@ from gae import mobile_handlers
 
 app = webapp2.WSGIApplication([
     ('/', basehandlers.MainPage),
-    ('/register', basehandlers.RegisterHandler),
-    ('/hook', basehandlers.HookHandler),
+    ('/register', mobile_handlers.RegisterHandler),
+    ('/hook', mobile_handlers.HookHandler),
     ('/new_message', mobile_handlers.NewMessageHandler),
     ('/get_message', mobile_handlers.FetchMessageHandler),
     ('/_ah/xmpp/message/chat/', xmpp.XMPPHandler)
