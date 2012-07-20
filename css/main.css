@@ -1,0 +1,19 @@
+body {
+	padding-top: 60px; /* 40px to make the container go all the way to the bottom of the topbar */
+}
+.hero-unit{
+	background: white;
+	padding:30px; 
+	box-shadow: 0 15px 10px -10px rgba(0, 0, 0, 0.5), 0 1px 4px rgba(0, 0, 0, 0.3), 0 0 40px rgba(0, 0, 0, 0.1) inset;
+	box-shadow:1px solid #EEE;
+	border: 1px solid rgba(0, 0, 0, 0.05)
+}
+.hero-unit .span3 {width: 160px}
+.hero-unit .span8 h1{padding-top:10px}
+.hero-unit img{ height: 150px;}
+
+.features{padding: 0 0 10px 0}
+.features .span4 img{padding: 0 8px 0 0}
+.howto h2{padding: 0 0 10px 0}
+
+footer img {float: right}
