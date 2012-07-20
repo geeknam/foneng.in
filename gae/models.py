@@ -30,7 +30,7 @@ class Contact(db.Model):
 
     account = db.ReferenceProperty(Account, collection_name="contacts")
     phone = db.PhoneNumberProperty(required=True)
-    full_name = db.StringProperty()
+    full_name = db.StringProperty(default="")
 
 
 class Message(polymodel.PolyModel):
@@ -81,10 +81,9 @@ class IncomingMessage(Message):
 
     def to_dict(self):
         return {
-            'user_email': self.user.email(),
+            'email': self.account.email,
             'content': self.content,
-            'sender': self.sender,
-            'received': self.received
+            'sender': self.sender.full_name,
         }
 
 
