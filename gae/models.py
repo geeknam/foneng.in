@@ -1,13 +1,14 @@
 from google.appengine.ext import db
 from google.appengine.ext.db import polymodel
+from google.appengine.api import memcache
 
 
 class Account(db.Model):
 
     user = db.UserProperty(required=True)
     phone = db.PhoneNumberProperty()
-    registration_time = db.DateTimeProperty(auto_now_add=True)
     registration_id = db.StringProperty(required=True)
+    registration_time = db.DateTimeProperty(auto_now_add=True)
     store_contacts = db.BooleanProperty(default=True)
     store_messages = db.BooleanProperty(default=True)
 
@@ -25,12 +26,80 @@ class Account(db.Model):
             'class =', 'OutgoingMessage'
         ).order('-time_sent').fetch(limit)
 
+    def search_contacts(self, prefix):
+        key = 'email:%s_prefix:%s' % (self.email, prefix)
+        cache_expiry = 60 * 60 * 24
+        contacts = memcache.get(key)
+        if contacts is not None:
+            return contacts
+        else:
+            contacts = self.contacts.filter('full_name >=', prefix).filter(
+                'full_name <', prefix + u'\ufffd'
+            )
+            memcache.add(key, contacts, cache_expiry)
+            return contacts
+
+    def send_message_to(self, phones, content):
+        recipients = []
+        for p in phones:
+            contact = Contact.get_or_insert(
+                '%s:%s' % (self.email, p.strip()),
+                phone=p.strip(), account=self
+            )
+            recipients.append(contact.key())
+
+        sent_message = OutgoingMessage(
+            recipients=recipients, account=self,
+            content=unicode(content)
+        )
+        sent_message.put()
+        message_key = str(db.Key.from_path(
+            'Message', sent_message.key().id()
+        ))
+
+        return message_key
+
+    def reply_to_last(self, content):
+        last_incoming = self.get_latest_incoming(1)[0]
+
+        # Create an OutgoingMessage
+        sent_message = OutgoingMessage(
+            recipients=[last_incoming.sender], account=self,
+            content=unicode(content)
+        )
+        sent_message.put()
+
+        message_key = str(db.Key.from_path(
+            'Message', sent_message.key().id()
+        ))
+
+        return message_key
+
+    def receive_from(self, phone, sender, content):
+        contact = Contact.get_or_insert(
+            '%s:%s' % (self.email, phone),
+            phone=phone, account=self,
+            full_name=sender
+        )
+        if not contact.full_name:
+            contact.full_name = sender
+            contact.put()
+
+        received_message = IncomingMessage(
+            sender=contact, account=self,
+            content=content
+        )
+        received_message.put()
+
 
 class Contact(db.Model):
 
     account = db.ReferenceProperty(Account, collection_name="contacts")
     phone = db.PhoneNumberProperty(required=True)
     full_name = db.StringProperty(default="")
+
+    def __unicode__(self):
+        return "%s: %s" % (self.full_name, self.phone)
 
 
 class Message(polymodel.PolyModel):
@@ -41,7 +110,7 @@ class Message(polymodel.PolyModel):
 
     @property
     def type(self):
-        return self.class_name().lower().strip('message')
+        return self.class_name().lower().replace('message', '')
 
     @property
     def is_incoming(self):

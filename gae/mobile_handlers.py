@@ -3,7 +3,7 @@ from google.appengine.api import xmpp
 
 from .basehandlers import JsonRequestHandler
 from .utils import login_required
-from .models import OutgoingMessage, IncomingMessage, Contact, Account
+from .models import Account
 from gcm import GCM
 from settings import DEBUG, API_KEY
 import logging
@@ -40,26 +40,10 @@ class NewMessageHandler(JsonRequestHandler):
     def post(self):
         super(NewMessageHandler, self).post()
 
-        recipients = []
-        # Loop over recipients list of phone numbers
-        for r in self.data['recipients']:
-            # Create or get the contact that has key_name of
-            # user_email:recipient_phone and append to the list
-            contact = Contact.get_or_insert(
-                '%s:%s' % (self.user.email(), r.strip()),
-                phone=r.strip(), account=self.account
-            )
-            recipients.append(contact.key())
-
-        # Create an outgoing message and get the entity key
-        sent_message = OutgoingMessage(
-            recipients=recipients, account=self.account,
-            content=unicode(self.data['content'])
+        message_key = self.account.send_message_to(
+            phones=self.data['recipients'],
+            content=self.data['content']
         )
-        sent_message.put()
-        message_key = str(db.Key.from_path(
-            'Message', sent_message.key().id()
-        ))
 
         # Make a GCM call to phone with user's reg_id and
         # the entity key to retrieve from datastore
@@ -96,23 +80,14 @@ class HookHandler(JsonRequestHandler):
         sender_name = self.data['full_name'].strip()
         content = unicode(self.data['content'])
 
-        # Create or get the contact that has key_name of
-        # user_email:recipient_phone and adds full_name if it's None
-        contact = Contact.get_or_insert(
-            '%s:%s' % (email, phone),
-            phone=phone, account=self.account,
-            full_name=sender_name
+        # Get the account
+        account = Account.get_by_key_name(
+            key_names=email
         )
-        if not contact.full_name:
-            contact.full_name = sender_name
-            contact.put()
 
-        # Create and IncomingMessage
-        received_message = IncomingMessage(
-            sender=contact, account=self.account,
-            content=content
+        account.receive_from(
+            phone=phone, sender=sender_name, content=content
         )
-        received_message.put()
 
         if not DEBUG:
             if xmpp.get_presence(email):

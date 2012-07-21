@@ -1,6 +1,5 @@
 from google.appengine.ext.webapp import xmpp_handlers
-from google.appengine.ext import db
-from models import Account, OutgoingMessage
+from models import Account
 
 from gcm import GCM
 from settings import API_KEY
@@ -18,18 +17,8 @@ class XMPPHandler(xmpp_handlers.CommandHandler):
         account = Account.get_by_key_name(
             key_names=email
         )
-        last_incoming = account.get_latest_incoming(1)[0]
+        message_key = account.reply_to_last(message.arg)
 
-        # Create an OutgoingMessage
-        sent_message = OutgoingMessage(
-            recipients=[last_incoming.sender], account=account,
-            content=unicode(message.arg)
-        )
-        sent_message.put()
-
-        message_key = str(db.Key.from_path(
-            'Message', sent_message.key().id()
-        ))
         gcm = GCM(API_KEY)
         gcm.plaintext_request(
             registration_id=account.registration_id,
@@ -38,7 +27,45 @@ class XMPPHandler(xmpp_handlers.CommandHandler):
         )
 
     def sms_command(self, message=None):
-        pass
+        idx_email = message.sender.index('/')
+        email = message.sender[0:idx_email]
+        idx_phone = message.arg.index(':')
+        phone = message.arg[0:idx_phone]
+        content = unicode(message.arg[idx_phone + 1:])
+
+        # Get the account
+        account = Account.get_by_key_name(
+            key_names=email
+        )
+        message_key = self.account.send_message_to(
+            phones=[phone], content=content
+        )
+
+        gcm = GCM(API_KEY)
+        gcm.plaintext_request(
+            registration_id=account.registration_id,
+            data={'key': message_key},
+            collapse_key=str(message_key)
+        )
+
+        message.reply("SMS has been sent to: %s" % phone)
+
+    def who_command(self, message=None):
+        idx_email = message.sender.index('/')
+        email = message.sender[0:idx_email]
+
+        # Get the account
+        account = Account.get_by_key_name(
+            key_names=email
+        )
+        contacts = account.search_contacts(message.arg)
+
+        reply = ''
+        if contacts:
+            for c in contacts:
+                reply += c + '\n'
+
+        message.reply(reply)
 
     def help_command(self, message=None):
         pass
