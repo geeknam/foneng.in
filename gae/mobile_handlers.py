@@ -34,16 +34,23 @@ class RegisterHandler(JsonRequestHandler):
                 self.response.out.write('OK')
 
 
-class NewMessageHandler(JsonRequestHandler):
+class NewResourceHandler(JsonRequestHandler):
 
     @login_required("NOT_AUTHORIZED")
     def post(self):
-        super(NewMessageHandler, self).post()
+        super(NewResourceHandler, self).post()
 
-        message_key = self.account.send_message_to(
-            phones=self.data['recipients'],
-            content=self.data['content']
-        )
+        kind = self.data['kind']
+
+        if kind == 'sms':
+            key = self.account.send_message_to(
+                phones=self.data['recipients'],
+                content=self.data['content']
+            )
+        elif kind == 'link':
+            key = self.account.send_link(
+                url=self.data['url']
+            )
 
         # Make a GCM call to phone with user's reg_id and
         # the entity key to retrieve from datastore
@@ -51,23 +58,27 @@ class NewMessageHandler(JsonRequestHandler):
             gcm = GCM(API_KEY)
             gcm.plaintext_request(
                 registration_id=self.account.registration_id,
-                data={'key': message_key},
-                collapse_key=str(message_key)
+                data={'key': key},
+                collapse_key=str(key)
             )
 
         self.response.out.write("OK")
 
 
-class FetchMessageHandler(JsonRequestHandler):
+class FetchResourceHandler(JsonRequestHandler):
 
     @login_required("NOT_AUTHORIZED")
     def post(self):
-        super(FetchMessageHandler, self).post()
-        # Phone sends the message_key and get the whole message
-        # back from datastore + mark it as sent
-        om = db.get(self.data['message_key'])
-        om.mark_sent()
-        self.render(om.to_dict())
+        super(FetchResourceHandler, self).post()
+        # Phone sends the key value and get the resource
+        # back from datastore
+        resource = db.get(self.data['key'])
+        kind = self.data['kind']
+        if kind == 'sms':
+            # Mark the sms as sent
+            resource.mark_sent()
+
+        self.render(resource.to_dict())
 
 
 # Handle notifying the received SMS through GTalk
@@ -75,19 +86,24 @@ class HookHandler(JsonRequestHandler):
 
     def post(self):
         super(HookHandler, self).post()
+        kind = self.data['kind']
         phone = self.data['phone'].strip()
         email = self.data['email'].strip()
         sender_name = self.data['full_name'].strip()
-        content = unicode(self.data['content'])
 
         # Get the account
         account = Account.get_by_key_name(
             key_names=email
         )
-
-        account.receive_from(
-            phone=phone, sender=sender_name, content=content
-        )
+        if kind == 'sms':
+            content = unicode(self.data['content'])
+            account.receive_message_from(
+                phone=phone, sender=sender_name, content=content
+            )
+        else:
+            account.call_from(
+                phone=phone, sender=sender_name
+            )
 
         if not DEBUG:
             if xmpp.get_presence(email):

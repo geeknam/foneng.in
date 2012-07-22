@@ -26,6 +26,12 @@ class Account(db.Model):
             'class =', 'OutgoingMessage'
         ).order('-time_sent').fetch(limit)
 
+    def get_latest_calls(self, limit):
+        return self.calls.fetch(limit).order('-time_called')
+
+    def get_latest_links(self, limit):
+        return self.links.fetch(limit).order('-time_sent')
+
     def search_contacts(self, prefix):
         key = 'email:%s_prefix:%s' % (self.email, prefix)
         cache_expiry = 60 * 60 * 24
@@ -75,7 +81,7 @@ class Account(db.Model):
 
         return message_key
 
-    def receive_from(self, phone, sender, content):
+    def receive_message_from(self, phone, sender, content):
         contact = Contact.get_or_insert(
             '%s:%s' % (self.email, phone),
             phone=phone, account=self,
@@ -90,6 +96,30 @@ class Account(db.Model):
             content=content
         )
         received_message.put()
+
+    def receive_call_from(self, phone, sender):
+        contact = Contact.get_or_insert(
+            '%s:%s' % (self.email, phone),
+            phone=phone, account=self,
+            full_name=sender
+        )
+        if not contact.full_name:
+            contact.full_name = sender
+            contact.put()
+
+        received_call = Call(caller=contact, account=self)
+        received_call.put()
+
+    def send_link(self, url):
+        link = Link.get_or_insert(
+            '%s:%s' % (self.email, url),
+            url=url, account=self
+        )
+        link_key = str(db.Key.from_path(
+            'Link', link.key().name()
+        ))
+
+        return link_key
 
 
 class Contact(db.Model):
@@ -161,3 +191,24 @@ class Call(db.Model):
     account = db.ReferenceProperty(Account, collection_name="calls")
     caller = db.ReferenceProperty(Contact, collection_name="calls")
     time_called = db.TimeProperty(auto_now_add=True)
+
+    def to_dict(self):
+        return {
+            'email': self.account.email,
+            'caller': self.caller.full_name,
+            'time_called': self.time_called
+        }
+
+
+class Link(db.Model):
+
+    account = db.ReferenceProperty(Account, collection_name="links")
+    url = db.LinkProperty(required=True)
+    time_sent = db.TimeProperty(auto_now_add=True)
+
+    def to_dict(self):
+        return {
+            'email': self.account.email,
+            'url': self.url,
+            'time_sent': self.time_sent
+        }
