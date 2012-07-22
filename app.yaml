@@ -14,9 +14,13 @@ handlers:
 - url: /images
   static_dir: images
 
-- url: .*
-  script: pushsms.app
+- url: /account/.*
+  script: accounts.app
+  secure: always
 
+- url: /
+  script: static.app
+  secure: always
 
 libraries:
 - name: jinja2
