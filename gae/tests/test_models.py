@@ -134,3 +134,12 @@ class MessageTestCase(unittest.TestCase):
         message.put()
         self.assertFalse(message.is_incoming)
         self.assertTrue(message.is_outgoing)
+
+    def test_mark_sent(self):
+        message = OutgoingMessage(account=self.account,
+            content='Hi there', recipients=[self.contact.key()]
+        )
+        message.put()
+        self.assertFalse(message.sent)
+        message.mark_sent()
+        self.assertTrue(message.sent)
