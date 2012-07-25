@@ -27,10 +27,10 @@ class Account(db.Model):
         ).order('-time_sent').fetch(limit)
 
     def get_latest_calls(self, limit):
-        return self.calls.fetch(limit).order('-time_called')
+        return self.calls.order('-time_called').fetch(limit)
 
     def get_latest_links(self, limit):
-        return self.links.fetch(limit).order('-time_sent')
+        return self.links.order('-time_sent').fetch(limit)
 
     def search_contacts(self, prefix):
         key = 'email:%s_prefix:%s' % (self.email, prefix)
@@ -70,7 +70,7 @@ class Account(db.Model):
 
         # Create an OutgoingMessage
         sent_message = OutgoingMessage(
-            recipients=[last_incoming.sender], account=self,
+            recipients=[last_incoming.sender.key()], account=self,
             content=unicode(content)
         )
         sent_message.put()
@@ -95,7 +95,7 @@ class Account(db.Model):
             sender=contact, account=self,
             content=content
         )
-        received_message.put()
+        return received_message.put()
 
     def receive_call_from(self, phone, sender):
         contact = Contact.get_or_insert(
