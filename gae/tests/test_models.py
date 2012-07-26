@@ -87,6 +87,12 @@ class AccountTestCase(unittest.TestCase):
         self.assertEqual(message.account.email, self.account.email)
         self.assertEqual(message.sender.full_name, 'John Smith')
 
+    def receive_call_from(self):
+        pass
+
+    def send_link(self):
+        pass
+
 
 class MessageTestCase(unittest.TestCase):
 
@@ -134,6 +140,20 @@ class MessageTestCase(unittest.TestCase):
         message.put()
         self.assertFalse(message.is_incoming)
         self.assertTrue(message.is_outgoing)
+
+    def test_get_not_sent(self):
+        OutgoingMessage(account=self.account,
+            content='Not sent', recipients=[self.contact.key()]
+        ).put()
+        OutgoingMessage(account=self.account, sent=True,
+            content='Sent', recipients=[self.contact.key()]
+        ).put()
+
+        not_sent = OutgoingMessage.get_not_sent()
+        self.assertEqual(len(list(not_sent)), 1)
+
+        for o in not_sent:
+            self.assertFalse(o.sent)
 
     def test_mark_sent(self):
         message = OutgoingMessage(account=self.account,

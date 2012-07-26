@@ -156,6 +156,10 @@ class OutgoingMessage(Message):
     recipients = db.ListProperty(db.Key)
     sent = db.BooleanProperty(default=False)
 
+    @staticmethod
+    def get_not_sent():
+        return OutgoingMessage.all().filter('sent', False)
+
     def mark_sent(self):
         if self.account.store_contacts:
             self.sent = True
