@@ -131,6 +131,9 @@ class Contact(db.Model):
     def __unicode__(self):
         return "%s: %s" % (self.full_name, self.phone)
 
+    def __eq__(self, key):
+        return self.key().name() == key
+
 
 class Message(polymodel.PolyModel):
 
@@ -155,6 +158,9 @@ class OutgoingMessage(Message):
 
     recipients = db.ListProperty(db.Key)
     sent = db.BooleanProperty(default=False)
+
+    def __contains__(self, key):
+        return key in self.recipients
 
     @staticmethod
     def get_not_sent():
