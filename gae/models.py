@@ -211,6 +211,12 @@ class Conversation(db.Model):
     contact = db.ReferenceProperty(Contact, collection_name="conversations")
     message = db.ReferenceProperty(Message)
 
+    def __getattr__(self, attr):
+        try:
+            return getattr(self.message, attr)
+        except AttributeError:
+            return None
+
 
 class Call(db.Model):
 
