@@ -23,6 +23,12 @@ class MessageTestCase(unittest.TestCase):
         )
         self.contact.put()
 
+    def test_contains(self):
+        phones = [self.contact.phone, '56465758']
+        key = self.account.send_message_to(phones, 'Group message')
+        message = db.get(key)
+        self.assertIn(self.contact.key(), message)
+
     def test_type(self):
         imessage = IncomingMessage(account=self.account,
             content='Hello World', sender=self.contact

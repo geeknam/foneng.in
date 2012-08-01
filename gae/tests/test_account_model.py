@@ -87,8 +87,19 @@ class AccountTestCase(unittest.TestCase):
         self.assertEqual(message.account.email, self.account.email)
         self.assertEqual(message.sender.full_name, 'John Smith')
 
-    def receive_call_from(self):
+    def test_receive_call_from(self):
         pass
 
-    def send_link(self):
+    def test_send_link(self):
         pass
+
+    def test_get_conversation_with(self):
+        phones = [self.contact.phone, '56465758']
+        self.account.send_message_to(phones, 'Group message')
+        self.account.receive_message_from(
+            '56465758', 'John Smith', 'Sup'
+        )
+        contact = Contact.get_by_key_name('%s:%s' % (self.account.email, '56465758'))
+        conversation = self.account.get_conversation_with(contact, 20)
+
+        self.assertEqual(len(conversation), 2)

@@ -106,6 +106,9 @@ class Account(db.Model):
 
         return key
 
+    def get_conversation_with(self, contact, limit=10):
+        return self.conversations.filter('contact =', contact).fetch(limit)
+
     def receive_call_from(self, phone, sender):
         contact = Contact.get_or_insert(
             '%s:%s' % (self.email, phone),
