@@ -47,11 +47,13 @@ class Account(db.Model):
 
     def send_message_to(self, phones, content):
         recipients = []
+        contacts = []
         for p in phones:
             contact = Contact.get_or_insert(
                 '%s:%s' % (self.email, p.strip()),
                 phone=p.strip(), account=self
             )
+            contacts.append(contact)
             recipients.append(contact.key())
 
         sent_message = OutgoingMessage(
@@ -59,6 +61,13 @@ class Account(db.Model):
             content=unicode(content)
         )
         sent_message.put()
+
+        # Add this message to conversation
+        for c in contacts:
+            Conversation(account=self,
+                contact=c, message=sent_message
+            ).put()
+
         message_key = str(db.Key.from_path(
             'Message', sent_message.key().id()
         ))
@@ -68,16 +77,9 @@ class Account(db.Model):
     def reply_to_last(self, content):
         last_incoming = self.get_latest_incoming(1)[0]
 
-        # Create an OutgoingMessage
-        sent_message = OutgoingMessage(
-            recipients=[last_incoming.sender.key()], account=self,
-            content=unicode(content)
+        message_key = self.send_message_to(
+            [last_incoming.sender.phone], content
         )
-        sent_message.put()
-
-        message_key = str(db.Key.from_path(
-            'Message', sent_message.key().id()
-        ))
 
         return message_key
 
@@ -95,7 +97,14 @@ class Account(db.Model):
             sender=contact, account=self,
             content=content
         )
-        return received_message.put()
+        key = received_message.put()
+
+        # Add this message to conversation
+        Conversation(account=self,
+            contact=contact, message=received_message
+        ).put()
+
+        return key
 
     def receive_call_from(self, phone, sender):
         contact = Contact.get_or_insert(
@@ -194,6 +203,13 @@ class IncomingMessage(Message):
             'content': self.content,
             'sender': self.sender.full_name,
         }
+
+
+class Conversation(db.Model):
+
+    account = db.ReferenceProperty(Account, collection_name="conversations")
+    contact = db.ReferenceProperty(Contact, collection_name="conversations")
+    message = db.ReferenceProperty(Message)
 
 
 class Call(db.Model):

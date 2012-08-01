@@ -93,6 +93,18 @@ class AccountTestCase(unittest.TestCase):
     def send_link(self):
         pass
 
+    def test_conversation(self):
+        phones = [self.contact.phone, '56465758']
+        self.account.send_message_to(phones, 'Group message')
+        self.account.receive_message_from(
+            '56465758', 'John Smith', 'Sup'
+        )
+        sender = Contact.get_by_key_name('%s:%s' % (self.account.email, '56465758'))
+        self.assertEqual(sender.full_name, 'John Smith')
+        self.assertEqual(self.contact.full_name, 'John Doe')
+        self.assertEqual(len(self.account.conversations.filter('contact =', sender).fetch(10)), 2)
+        self.assertEqual(len(self.account.conversations.filter('contact =', self.contact).fetch(10)), 1)
+
 
 class MessageTestCase(unittest.TestCase):
 
