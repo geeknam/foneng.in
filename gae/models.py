@@ -146,6 +146,12 @@ class Contact(db.Model):
     def __eq__(self, key):
         return self.key().name() == key
 
+    def to_dict(self):
+        return {
+            'full_name': self.full_name,
+            'phone': self.phone
+        }
+
 
 class Message(polymodel.PolyModel):
 
@@ -164,6 +170,12 @@ class Message(polymodel.PolyModel):
     @property
     def is_outgoing(self):
         return self.type == 'outgoing'
+
+    def to_dict(self):
+        return {
+            'content': self.content,
+            'time_sent': self.time_sent
+        }
 
 
 class OutgoingMessage(Message):
@@ -219,6 +231,12 @@ class Conversation(db.Model):
             return getattr(self.message, attr)
         except AttributeError:
             return None
+
+    def to_dict(self):
+        return {
+            'contact': self.contact.to_dict(),
+            'message': self.message.to_dict()
+        }
 
 
 class Call(db.Model):

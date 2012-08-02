@@ -23,6 +23,12 @@ class BaseRequestHandler(webapp2.RequestHandler):
 
 class JsonRequestHandler(webapp2.RequestHandler):
 
+    def get(self):
+        self.user = users.get_current_user()
+        self.account = Account.get_by_key_name(
+            key_names=self.user.email()
+        )
+
     def post(self):
         self.data = json.loads(self.request.body)
         self.user = users.get_current_user()
