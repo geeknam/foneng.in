@@ -32,18 +32,25 @@ class Account(db.Model):
     def get_latest_links(self, limit):
         return self.links.order('-time_sent').fetch(limit)
 
+    def get_contact_by_phone(self, phone):
+        key_name = '%s:%s' % (self.email, phone)
+        contact = memcache.get(key_name)
+        if contact is not None:
+            return contact
+        contact = Contact.get_by_key_name(key_name)
+        memcache.add(key_name, contact, 60 * 60 * 24)
+        return contact
+
     def search_contacts(self, prefix):
         key = 'email:%s_prefix:%s' % (self.email, prefix)
-        cache_expiry = 60 * 60 * 24
         contacts = memcache.get(key)
         if contacts is not None:
             return contacts
-        else:
-            contacts = self.contacts.filter('full_name >=', prefix).filter(
-                'full_name <', prefix + u'\ufffd'
-            )
-            memcache.add(key, contacts, cache_expiry)
-            return contacts
+        contacts = self.contacts.filter('full_name >=', prefix).filter(
+            'full_name <', prefix + u'\ufffd'
+        )
+        memcache.add(key, contacts, 60 * 60 * 24)
+        return contacts
 
     def send_message_to(self, phones, content):
         recipients = []
@@ -197,14 +204,15 @@ class OutgoingMessage(Message):
         else:
             self.delete()
 
-    def to_dict(self):
-        recipients = [Contact.get(r).phone for r in self.recipients]
-
-        return {
-            'email': self.account.email,
+    def to_dict(self, show_source=False):
+        serialized = {
             'content': self.content,
-            'recipients': recipients,
+            'time_sent': self.time_sent.isoformat()
         }
+        if show_source:
+            recipients = [Contact.get(r).to_dict() for r in self.recipients]
+            serialized.update({'recipients': recipients})
+        return serialized
 
 
 class IncomingMessage(Message):
@@ -212,12 +220,14 @@ class IncomingMessage(Message):
     sender = db.ReferenceProperty(Contact, collection_name="sent_messages")
     received = db.BooleanProperty(default=False)
 
-    def to_dict(self):
-        return {
-            'email': self.account.email,
+    def to_dict(self, show_source=False):
+        serialized = {
             'content': self.content,
-            'sender': self.sender.full_name,
+            'time_sent': self.time_sent.isoformat(),
         }
+        if show_source:
+            serialized.update({'sender': self.sender.full_name})
+        return serialized
 
 
 class Conversation(db.Model):
