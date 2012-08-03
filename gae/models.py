@@ -127,7 +127,9 @@ class Account(db.Model):
             contact.put()
 
         received_call = Call(caller=contact, account=self)
-        received_call.put()
+        key = received_call.put()
+
+        return key
 
     def send_link(self, url):
         link = Link.get_or_insert(
@@ -139,6 +141,10 @@ class Account(db.Model):
         ))
 
         return link_key
+
+    def wipe(self, entities=[]):
+        for e in entities:
+            db.delete(getattr(self, e))
 
 
 class Contact(db.Model):

@@ -57,6 +57,10 @@ class AccountTestCase(unittest.TestCase):
         Link(account=self.account, url='http://google.com').put()
         self.assertEqual(len(self.account.get_latest_links(5)), 1)
 
+    def test_get_contact_by_phone(self):
+        contact = self.account.get_contact_by_phone(self.contact.phone)
+        self.assertEqual(contact, self.contact)
+
     def test_search_contacts(self):
         pass
 
@@ -88,10 +92,16 @@ class AccountTestCase(unittest.TestCase):
         self.assertEqual(message.sender.full_name, 'John Smith')
 
     def test_receive_call_from(self):
-        pass
+        key = self.account.receive_call_from('1234567', 'John Smith')
+        call = db.get(key)
+        self.assertEqual(call.account.email, self.account.email)
+        self.assertEqual(call.caller.full_name, 'John Smith')
 
     def test_send_link(self):
-        pass
+        key = self.account.send_link('http://google.com')
+        link = db.get(key)
+        self.assertEqual(link.account.email, self.account.email)
+        self.assertEqual(link.url, 'http://google.com')
 
     def test_get_conversation_with(self):
         phones = [self.contact.phone, '56465758']
@@ -103,3 +113,25 @@ class AccountTestCase(unittest.TestCase):
         conversation = self.account.get_conversation_with(contact, 20)
 
         self.assertEqual(len(conversation), 2)
+
+    def test_wipe(self):
+        Call(account=self.account, caller=self.contact).put()
+        Link(account=self.account, url='http://google.com').put()
+        IncomingMessage(account=self.account,
+            content='Hello World', sender=self.contact
+        ).put()
+        OutgoingMessage(account=self.account,
+            content='Hi there', recipients=[self.contact.key()]
+        ).put()
+
+        self.assertEqual(len(list(self.account.contacts)), 1)
+        self.assertEqual(len(list(self.account.links)), 1)
+        self.assertEqual(len(list(self.account.calls)), 1)
+        self.assertEqual(len(list(self.account.messages)), 2)
+
+        self.account.wipe(['contacts', 'links', 'calls', 'messages'])
+
+        self.assertEqual(len(list(self.account.contacts)), 0)
+        self.assertEqual(len(list(self.account.links)), 0)
+        self.assertEqual(len(list(self.account.calls)), 0)
+        self.assertEqual(len(list(self.account.messages)), 0)
