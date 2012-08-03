@@ -114,7 +114,7 @@ class Account(db.Model):
         return key
 
     def get_conversation_with(self, contact, limit=10):
-        return self.conversations.filter('contact =', contact).fetch(limit)
+        return self.conversations.filter('contact =', contact).order('-timestamp').fetch(limit)
 
     def receive_call_from(self, phone, sender):
         contact = Contact.get_or_insert(
@@ -155,7 +155,7 @@ class Contact(db.Model):
 
     def to_dict(self):
         return {
-            'full_name': self.full_name,
+            'full_name': self.full_name if self.full_name != "" else "Not synced",
             'phone': self.phone
         }
 
@@ -235,6 +235,7 @@ class Conversation(db.Model):
     account = db.ReferenceProperty(Account, collection_name="conversations")
     contact = db.ReferenceProperty(Contact, collection_name="conversations")
     message = db.ReferenceProperty(Message)
+    timestamp = db.TimeProperty(auto_now_add=True)
 
     def __getattr__(self, attr):
         try:
@@ -259,7 +260,7 @@ class Call(db.Model):
         return {
             'email': self.account.email,
             'caller': self.caller.full_name,
-            'time_called': self.time_called
+            'time_called': self.time_called.isoformat()
         }
 
 
@@ -273,5 +274,5 @@ class Link(db.Model):
         return {
             'email': self.account.email,
             'url': self.url,
-            'time_sent': self.time_sent
+            'time_sent': self.time_sent.isoformat()
         }

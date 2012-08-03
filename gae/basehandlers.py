@@ -23,18 +23,18 @@ class BaseRequestHandler(webapp2.RequestHandler):
 
 class JsonRequestHandler(webapp2.RequestHandler):
 
-    def get(self):
+    def get_account(self):
         self.user = users.get_current_user()
         self.account = Account.get_by_key_name(
             key_names=self.user.email()
         )
 
+    def get(self):
+        self.get_account()
+
     def post(self):
         self.data = json.loads(self.request.body)
-        self.user = users.get_current_user()
-        self.account = Account.get_by_key_name(
-            key_names=self.user.email()
-        )
+        self.get_account()
 
     def render(self, context={}):
         self.response.headers['Content-Type'] = 'application/json'

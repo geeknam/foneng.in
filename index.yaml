@@ -10,6 +10,25 @@ indexes:
 # automatically uploaded to the admin console when you next deploy
 # your application using appcfg.py.
 
+- kind: Conversation
+  properties:
+  - name: account
+  - name: contact
+  - name: timestamp
+    direction: desc
+
+- kind: Conversation
+  properties:
+  - name: account
+  - name: timestamp
+    direction: desc
+
+- kind: Link
+  properties:
+  - name: account
+  - name: time_sent
+    direction: desc
+
 - kind: Message
   properties:
   - name: account

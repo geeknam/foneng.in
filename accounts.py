@@ -6,6 +6,9 @@ app = webapp2.WSGIApplication([
     ('/account/hook', mobile_handlers.HookHandler),
     ('/account/new_resource', mobile_handlers.NewResourceHandler),
     ('/account/get_resource', mobile_handlers.FetchResourceHandler),
-    ('/account/conversation/(.*)', web_handlers.AccountHandler),
+
+    ('/account/conversations/(.*)', web_handlers.ConversationHandler),
+    ('/account/contacts', web_handlers.ContactHandler),
+    ('/account/links', web_handlers.LinkHandler),
 ], debug=True
 )
