@@ -161,7 +161,7 @@ class Contact(db.Model):
 
     def to_dict(self):
         return {
-            'full_name': self.full_name if self.full_name != "" else "Not synced",
+            'full_name': self.full_name if self.full_name != "" else "Unknown",
             'phone': self.phone
         }
 
@@ -187,7 +187,7 @@ class Message(polymodel.PolyModel):
     def to_dict(self):
         return {
             'content': self.content,
-            'time_sent': self.time_sent
+            'time_sent': self.time_sent,
         }
 
 
@@ -213,7 +213,8 @@ class OutgoingMessage(Message):
     def to_dict(self, show_source=False):
         serialized = {
             'content': self.content,
-            'time_sent': self.time_sent.isoformat()
+            'time_sent': self.time_sent.isoformat(),
+            'type': 'outgoing'
         }
         if show_source:
             recipients = [Contact.get(r).to_dict() for r in self.recipients]
@@ -230,6 +231,7 @@ class IncomingMessage(Message):
         serialized = {
             'content': self.content,
             'time_sent': self.time_sent.isoformat(),
+            'type': 'incoming'
         }
         if show_source:
             serialized.update({'sender': self.sender.full_name})

@@ -1,4 +1,4 @@
-define(['jquery', 'underscore', 'backbone', 'models/todo', 'text!templates/messages.html'
+define(['jquery', 'underscore', 'backbone', 'models/message', 'text!templates/messages.html'
   ], function($, _, Backbone, Message, messagesTemplate){
     
     var MessageView = Backbone.View.extend({
