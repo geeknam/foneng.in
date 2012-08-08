@@ -17,6 +17,7 @@ class ConversationHandler(JsonRequestHandler):
 
         for c in convos:
             convos_serialized.append(c.to_dict())
+        # data = {'conversations': convos_serialized}
         self.render(convos_serialized)
 
 

@@ -51,4 +51,4 @@ class HomePage(BaseRequestHandler):
 
     @login_required()
     def get(self):
-        self.render('index.html')
+        self.render('home.html')
